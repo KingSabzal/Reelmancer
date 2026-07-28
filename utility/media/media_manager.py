@@ -521,9 +521,9 @@ class MediaSourceManager:
                     size = int(file_entry.get("size", 0) or 0)
                 except (TypeError, ValueError):
                     size = 0
-                # Skip long documentaries: they are hundreds of MB and would exhaust
-                # memory while only three seconds are needed.
-                if not size or size > 60 * 1024 * 1024:
+                # Size no longer disqualifies a clip. Unknown-size entries are still
+                # skipped because the sort below needs a number to rank on.
+                if not size:
                     continue
                 link = f"https://archive.org/download/{identifier}/{quote_plus(name)}"
                 if link not in used:
