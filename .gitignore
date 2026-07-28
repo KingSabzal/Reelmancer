@@ -1,0 +1,35 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Packaging / environments
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+
+# Generated runtime data - safe to delete, all of it is regenerated.
+# The folders themselves are kept (see the .gitkeep files) so a fresh clone has
+# somewhere to write before ensure_runtime_dirs() runs.
+assets/*
+!assets/.gitkeep
+assets/fonts/
+assets/api_cache/
+assets/music/
+assets/temp/
+assets/bin/
+assets/trend_cache.json
+assets/trend_history.json
+
+# Finished videos and their packages
+output/
+
+# Your API keys live in config.json. Never commit it to a public repository.
+config.json
+
+# OS noise
+.DS_Store
+Thumbs.db
