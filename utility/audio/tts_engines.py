@@ -133,12 +133,51 @@ async def _edge_speak(text: str, output_path: str, voice: str, rate: str, pitch:
     await communicate.save(output_path)
 
 
+def _run_async(coroutine) -> None:
+    """Run a coroutine whether or not an event loop is already running.
+
+    asyncio.run() refuses to start when a loop is already active, which is the
+    case inside Jupyter, Colab and any other notebook kernel. EdgeTTS then failed
+    with "asyncio.run() cannot be called from a running event loop" and every
+    voice fell through to the low quality fallback. nest_asyncio makes nesting
+    legal; if it is unavailable the work is handed to a separate thread, which
+    has no loop of its own.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(coroutine)      # the normal case: no loop, run directly
+        return
+
+    try:
+        import nest_asyncio
+
+        nest_asyncio.apply()
+        asyncio.run(coroutine)
+        return
+    except ImportError:
+        pass
+
+    # Last resort: a thread with a clean event loop of its own.
+    import concurrent.futures
+
+    def _worker():
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(coroutine)
+        finally:
+            loop.close()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        pool.submit(_worker).result()
+
+
 def edge_tts_synthesize(
     text: str, output_path: str, voice: str, rate: str = "+0%", pitch: str = "+0Hz"
 ) -> bool:
     """Synthesize with EdgeTTS. Returns True on success."""
     refresh_edge_tts_drm()
-    asyncio.run(_edge_speak(text, output_path, voice, rate, pitch))
+    _run_async(_edge_speak(text, output_path, voice, rate, pitch))
     return _valid_audio(output_path)
 
 
