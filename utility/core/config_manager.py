@@ -68,6 +68,21 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
     return result
 
 
+# Environment variable -> config field. Set any of these before the interface
+# starts and it will use them without the Settings tab being touched.
+ENV_OVERRIDES: Dict[str, str] = {
+    "llm_provider": "REELMANCER_LLM_PROVIDER",
+    "router9_url": "REELMANCER_ROUTER9_URL",
+    "router9_key": "REELMANCER_ROUTER9_KEY",
+    "openrouter_key": "REELMANCER_OPENROUTER_KEY",
+    "nvidia_nim_key": "REELMANCER_NVIDIA_NIM_KEY",
+    "nvidia_nim_url": "REELMANCER_NVIDIA_NIM_URL",
+    "cloudflare_account_id": "REELMANCER_CLOUDFLARE_ACCOUNT_ID",
+    "cloudflare_api_token": "REELMANCER_CLOUDFLARE_API_TOKEN",
+    "pexels_api_key": "REELMANCER_PEXELS_KEY",
+    "pixabay_api_key": "REELMANCER_PIXABAY_KEY",
+}
+
 class ConfigManager:
     """Thread-safe read/write access to config.json."""
 
@@ -77,7 +92,7 @@ class ConfigManager:
         self.load()
 
     def load(self) -> Dict[str, Any]:
-        """Load config from disk, merged over defaults."""
+        """Load config from disk, merged over defaults, then over the environment."""
         data = {}
         if os.path.exists(self.path):
             try:
@@ -87,7 +102,27 @@ class ConfigManager:
                 print(f"[Config] Could not read config.json ({exc}); using defaults.")
                 data = {}
         self._cache = _deep_merge(DEFAULT_CONFIG, data)
+        self._apply_environment()
         return self._cache
+
+    def _apply_environment(self) -> None:
+        """Let environment variables supply the keys.
+
+        This is what makes the interface usable on a hosted runtime. Keys can be
+        set in a notebook cell or a Secrets panel and the interface picks them up
+        with nothing typed into the Settings tab and nothing written into a file
+        that might be committed. An environment value always wins, because it is
+        the more deliberate of the two.
+        """
+        applied = []
+        for field, variable in ENV_OVERRIDES.items():
+            value = os.environ.get(variable, "").strip()
+            if value:
+                self._cache[field] = value
+                applied.append(variable)
+        if applied:
+            print(f"[Config] Applied {len(applied)} setting(s) from the environment: "
+                  f"{', '.join(applied)}")
 
     def save(self) -> None:
         """Persist the in-memory config to disk."""
