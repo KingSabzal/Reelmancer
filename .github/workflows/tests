@@ -1,0 +1,59 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pyflakes
+
+      - name: Check for undefined names
+        # compat is imported purely for its side effect: it restores the Pillow
+        # constants MoviePy 1.0.3 still expects, and must load before moviepy does.
+        # pyflakes cannot see that, so those five lines are filtered out.
+        run: |
+          python -m pyflakes ui utility tests app.py \
+            | grep -v "utility.core.compat' imported but unused" \
+            > pyflakes.txt || true
+          if [ -s pyflakes.txt ]; then
+            echo "pyflakes found problems:"
+            cat pyflakes.txt
+            exit 1
+          fi
+          echo "pyflakes clean"
+
+      - name: Run the test suite
+        run: python -m pytest -q
+
+      - name: Confirm the app imports on a clean checkout
+        run: |
+          python -c "
+          import importlib, pkgutil
+          for package in ('ui', 'utility'):
+              module = importlib.import_module(package)
+              for found in pkgutil.walk_packages(module.__path__, package + '.'):
+                  importlib.import_module(found.name)
+          print('every module imports')
+          "
