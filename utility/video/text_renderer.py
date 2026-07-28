@@ -8,6 +8,7 @@ and removes that requirement completely.
 from __future__ import annotations
 
 import logging
+import os
 from typing import List, Optional, Tuple
 
 from utility.core import compat  # noqa: F401  (restores Pillow constants for MoviePy)
@@ -30,9 +31,63 @@ FALLBACK_FONTS = [
 ]
 
 
+def _cached_fonts() -> List[str]:
+    """Fonts the caption renderer already downloaded into assets/fonts.
+
+    Without this the renderer only looked at a handful of system paths. A bare
+    Linux container has none of them, so captions fell back to Pillow's bitmap
+    font and came out pixelated, even though usable TrueType files were sitting
+    in the project's own font cache.
+    """
+    try:
+        from utility.core.paths import FONT_CACHE_DIR
+
+        if not os.path.isdir(FONT_CACHE_DIR):
+            return []
+        names = sorted(
+            name for name in os.listdir(FONT_CACHE_DIR)
+            if name.lower().endswith((".ttf", ".otf"))
+        )
+        # Bold reads better on video, so prefer it when both exist.
+        names.sort(key=lambda name: 0 if "bold" in name.lower() else 1)
+        return [os.path.join(FONT_CACHE_DIR, name) for name in names]
+    except Exception:  # noqa: BLE001 - font discovery must never break a render
+        return []
+
+
+def _system_fonts() -> List[str]:
+    """Any TrueType font installed on this machine, wherever it lives."""
+    found: List[str] = []
+    for directory in (
+        "/usr/share/fonts", "/usr/local/share/fonts",
+        os.path.expanduser("~/.fonts"), "C:/Windows/Fonts",
+        "/System/Library/Fonts", "/Library/Fonts",
+    ):
+        if not os.path.isdir(directory):
+            continue
+        try:
+            for root, _dirs, files in os.walk(directory):
+                for name in files:
+                    if name.lower().endswith((".ttf", ".otf")):
+                        found.append(os.path.join(root, name))
+                if len(found) > 40:
+                    break
+        except OSError:
+            continue
+        if found:
+            break
+    found.sort(key=lambda path: 0 if "bold" in os.path.basename(path).lower() else 1)
+    return found
+
+
 def load_font(font_path: Optional[str], size: int) -> ImageFont.FreeTypeFont:
-    """Load a TrueType font with graceful fallbacks."""
-    candidates = ([font_path] if font_path else []) + FALLBACK_FONTS
+    """Load a TrueType font, searching every place one might exist."""
+    candidates = (
+        ([font_path] if font_path else [])
+        + _cached_fonts()          # fonts this project downloaded
+        + FALLBACK_FONTS           # the usual system locations
+        + _system_fonts()          # anything else installed
+    )
     for candidate in candidates:
         if not candidate:
             continue
@@ -40,7 +95,10 @@ def load_font(font_path: Optional[str], size: int) -> ImageFont.FreeTypeFont:
             return ImageFont.truetype(candidate, size)
         except (OSError, ValueError):
             continue
-    LOGGER.info("No TrueType font available; using the Pillow default bitmap font.")
+    LOGGER.warning(
+        "No TrueType font found anywhere; captions will use Pillow's bitmap font "
+        "and will look pixelated. On Debian or Ubuntu: apt-get install fonts-dejavu-core"
+    )
     return ImageFont.load_default()
 
 
