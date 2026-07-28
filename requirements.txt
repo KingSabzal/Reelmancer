@@ -1,0 +1,24 @@
+# Reelmancer - lightweight, free, Windows-friendly dependencies.
+# No paid SDKs (no ElevenLabs, Deepgram, Runway, Suno) and no heavy local models.
+
+streamlit>=1.40.0
+requests>=2.32.3
+aiohttp>=3.10.0
+nest-asyncio>=1.6.0
+# edge-tts below 7.x sends an outdated Sec-MS-GEC-Version and Microsoft answers HTTP 403.
+edge-tts>=7.2.3
+faster-whisper>=1.0.3
+moviepy==1.0.3
+# MoviePy 1.0.3 predates Pillow 10 and calls the removed Image.ANTIALIAS constant in its
+# Pillow resizer. compat.py restores that constant, and opencv gives a faster resize path.
+opencv-python-headless>=4.10.0
+imageio>=2.35.0
+imageio-ffmpeg>=0.5.1
+numpy>=1.26.4,<2.2
+Pillow>=10.4.0
+pytrends>=4.9.2
+# Readability extraction for the "Create From a Link" tab.
+trafilatura>=1.12.0
+beautifulsoup4>=4.12.3
+lxml>=5.3.0
+python-dateutil>=2.9.0

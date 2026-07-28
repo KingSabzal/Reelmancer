@@ -1,0 +1,12 @@
+{
+  "llm_provider": "openrouter",
+  "router9_url": "http://localhost:9000/v1",
+  "router9_key": "",
+  "openrouter_key": "",
+  "nvidia_nim_url": "https://integrate.api.nvidia.com/v1",
+  "nvidia_nim_key": "",
+  "cloudflare_account_id": "",
+  "cloudflare_api_token": "",
+  "pexels_api_key": "",
+  "pixabay_api_key": ""
+}

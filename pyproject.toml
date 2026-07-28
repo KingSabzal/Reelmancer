@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reelmancer"
+version = "1.0.0"
+description = "Turn a topic, trend or URL into an upload-ready short-form video using only free, zero-attribution sources."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "KingSabzal" }]
+keywords = ["video", "youtube", "shorts", "tiktok", "automation", "streamlit"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Environment :: Console",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Multimedia :: Video :: Conversion",
+    "Operating System :: OS Independent",
+]
+
+
+dependencies = [
+    "streamlit>=1.36",
+    "requests>=2.32",
+    "aiohttp>=3.9",
+    "moviepy==1.0.3",
+    "imageio-ffmpeg>=0.5",
+    "Pillow>=10.0",
+    "numpy>=1.26",
+    "edge-tts>=7.2.3",
+    "gTTS>=2.5",
+    "faster-whisper>=1.0",
+    "trafilatura>=1.9",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pyflakes>=3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/KingSabzal/Reelmancer"
+Issues = "https://github.com/KingSabzal/Reelmancer/issues"
+
+[tool.setuptools]
+# The application is run in place with `streamlit run app.py` rather than
+# installed, so the feature packages are listed explicitly instead of being
+# auto-discovered (which would also sweep up tests/, assets/ and output/).
+packages = [
+    "ui",
+    "ui.tabs",
+    "utility",
+    "utility.articles",
+    "utility.audio",
+    "utility.content",
+    "utility.core",
+    "utility.diagnostics",
+    "utility.llm",
+    "utility.media",
+    "utility.publishing",
+    "utility.trends",
+    "utility.video",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
