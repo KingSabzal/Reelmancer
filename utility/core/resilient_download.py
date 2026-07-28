@@ -40,6 +40,10 @@ TRANSIENT_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 522, 524}
 # Retrying these never helps: the resource is gone or the host refuses this client.
 PERMANENT_STATUS = {400, 401, 402, 403, 404, 405, 410, 451}
 
+# Purely informational: files above this are logged so a slow download is
+# explained in the output, but nothing is rejected.
+LARGE_FILE_NOTICE_BYTES = 80 * 1024 * 1024
+
 CHUNK_SIZE = 256 * 1024
 MIN_VIDEO_BYTES = 20 * 1024
 MIN_AUDIO_BYTES = 8 * 1024
@@ -109,7 +113,7 @@ def download_with_retries(
     headers: Optional[Dict[str, str]] = None,
     on_status: Optional[Callable[[str], None]] = None,
     session: Optional[requests.Session] = None,
-    max_bytes: int = 60 * 1024 * 1024,
+    max_bytes: Optional[int] = None,
 ) -> DownloadResult:
     """Download a URL, resuming and retrying through transient network problems.
 
@@ -213,14 +217,13 @@ def download_with_retries(
             if length and length.isdigit():
                 expected = int(length) + existing
 
-            # Guard against enormous archive files: a multi-hour documentary is not a
-            # usable B-roll clip and would stall the whole render.
-            if expected and expected > max_bytes:
+            # No size limit: a large source clip is downloaded in full rather than
+            # rejected, because rejecting it costs the segment its best match.
+            if expected and expected > LARGE_FILE_NOTICE_BYTES:
                 LOGGER.info(
-                    "Skipping %s: %.0f MB is too large for a background clip.",
+                    "%s is %.0f MB; downloading in full.",
                     url.split("/")[-1][:40], expected / (1024 * 1024),
                 )
-                raise PermanentDownloadError("File exceeds the size limit for a clip")
 
             oversized = False
             try:
@@ -231,9 +234,9 @@ def download_with_retries(
                             continue
                         handle.write(chunk)
                         written += len(chunk)
-                        # Some servers omit Content-Length, so the cap must also be
-                        # enforced while streaming or a huge file fills the disk.
-                        if written > max_bytes:
+                        # Only an explicit max_bytes stops a download now. Left as an
+                        # opt-in guard for callers that genuinely need a ceiling.
+                        if max_bytes is not None and written > max_bytes:
                             oversized = True
                             break
             except (requests.Timeout, requests.ConnectionError, OSError) as exc:
@@ -260,8 +263,8 @@ def download_with_retries(
 
             if oversized:
                 LOGGER.info(
-                    "Aborted %s: exceeded the %.0f MB limit for a background clip.",
-                    url.split("/")[-1][:40], max_bytes / (1024 * 1024),
+                    "Aborted %s: exceeded the caller's %.0f MB limit.",
+                    url.split("/")[-1][:40], (max_bytes or 0) / (1024 * 1024),
                 )
                 try:
                     os.remove(partial)
@@ -269,8 +272,6 @@ def download_with_retries(
                     pass
                 raise PermanentDownloadError("File exceeds the size limit for a clip")
 
-            if False:  # placeholder replaced below
-                pass
             minimum = MIN_VIDEO_BYTES if kind == "video" else MIN_AUDIO_BYTES
             if not _is_probably_complete(partial, expected, minimum):
                 got = os.path.getsize(partial) if os.path.exists(partial) else 0
@@ -319,9 +320,11 @@ def download_media(
     session: Optional[requests.Session] = None,
     max_bytes: Optional[int] = None,
 ) -> Optional[str]:
-    """Convenience wrapper returning the path on success and None on failure."""
-    if max_bytes is None:
-        max_bytes = 60 * 1024 * 1024 if kind == "video" else 25 * 1024 * 1024
+    """Convenience wrapper returning the path on success and None on failure.
+
+    max_bytes stays None unless a caller asks for a ceiling, so clip size never
+    decides whether a segment gets its footage.
+    """
     try:
         result = download_with_retries(
             url, destination, kind=kind, max_attempts=max_attempts,
