@@ -1,5 +1,6 @@
 # Reelmancer
 
+![tests](https://github.com/KingSabzal/Reelmancer/actions/workflows/tests.yml/badge.svg)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
